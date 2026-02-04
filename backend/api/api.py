@@ -1,48 +1,76 @@
-import sys
-import os
-
-# Allow imports from project root
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
 from fastapi import FastAPI
 from pydantic import BaseModel
-from backend.api.controller import HoneypotController
+from typing import Optional
+
+from backend.storage.database import init_db, save_message, get_last_messages
+import uuid
+from backend.agent.agent_controller import AgentController
+from backend.extraction.extractor import extract_entities
+from backend.extraction.detector import detect_scam
 
 app = FastAPI(title="Scam Honeypot API")
-
-# 🔒 Single controller instance (demo / session-like behavior)
-controller = HoneypotController(
-    persona="""
-You are a 65-year-old Indian retired man.
-You speak politely in Hinglish.
-You are slow and confused with technology.
-You never refuse directly.
-You ask people to repeat details slowly.
-Avoid repeating the same phrase every time.
-""",
-    goal="Extract payment details like UPI ID without alerting the scammer."
-)
+init_db()
+# ---------------- Schemas ----------------
 
 class ChatRequest(BaseModel):
     message: str
+conversation_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
     reply: str
     stop_chat: bool
     extracted: dict
+    detection: Optional[dict] = None
+    evidence: Optional[dict] = None
+
+
+# ---------------- Controller ----------------
+
+agent = AgentController()  # DO NOT pass GeminiClient here
+
+
+# ---------------- Route ----------------
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    reply = controller.process_message(req.message)
 
-    extracted_data = (
-        controller.extracted.dict()
-        if hasattr(controller.extracted, "dict")
-        else controller.extracted.model_dump()
-    )
+    
+
+    # 1. Entity extraction
+    extracted = extract_entities(req.message)
+
+    # 2. Scam detection
+    detection = detect_scam(req.message, extracted)
+
+    if not detection:
+        detection = {
+            "risk_score": 0,
+            "risk_level": "LOW",
+            "is_scam": False,
+            "reasons": []
+        }
+
+    # 3. High-risk → block
+    if detection["is_scam"] and detection["risk_score"] >= 5:
+        return {
+            "reply": "⚠️ This conversation has been flagged as a potential scam. Interaction blocked.",
+            "stop_chat": True,
+            "extracted": extracted,
+            "detection": detection,
+            "evidence": {
+                "message": req.message,
+                "entities": extracted,
+                "reasons": detection["reasons"]
+            }
+        }
+
+    # 4. Normal Gemini reply (NO TRY)
+    reply = agent.generate_reply(req.message)
 
     return {
         "reply": reply,
-        "stop_chat": controller.stop_chat,
-        "extracted": extracted_data
+        "stop_chat": False,
+        "extracted": extracted,
+        "detection": detection,
+        "evidence": None
     }

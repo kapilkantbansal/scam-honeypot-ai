@@ -1,33 +1,36 @@
-def calculate_risk_score(entities: dict) -> dict:
-    """
-    Calculate a simple risk score based on extracted scam entities.
-    """
-
+def calculate_risk(extracted: dict, message: str) -> dict:
     score = 0
+    reasons = []
 
-    if entities.get("upi_ids"):
-        score += 30
+    msg = message.lower()
 
-    if entities.get("bank_accounts"):
-        score += 30
+    if extracted.get("upi_ids"):
+        score += 3
+        reasons.append("UPI ID detected")
 
-    if entities.get("ifsc_codes"):
-        score += 20
+    if extracted.get("phone_numbers"):
+        score += 2
+        reasons.append("Phone number detected")
 
-    if entities.get("phishing_links"):
-        score += 20
+    if extracted.get("bank_accounts"):
+        score += 4
+        reasons.append("Bank account detected")
 
-    if entities.get("phone_numbers"):
-        score += 10
+    keywords = ["send money", "otp", "kyc", "verify", "urgent"]
+    for k in keywords:
+        if k in msg:
+            score += 1
+            reasons.append(f"Keyword: {k}")
 
-    if score >= 60:
+    level = "LOW"
+    if score >= 6:
         level = "HIGH"
-    elif score >= 30:
+    elif score >= 3:
         level = "MEDIUM"
-    else:
-        level = "LOW"
 
     return {
         "risk_score": score,
-        "risk_level": level
+        "risk_level": level,
+        "is_scam": score >= 3,
+        "reasons": list(set(reasons))
     }
