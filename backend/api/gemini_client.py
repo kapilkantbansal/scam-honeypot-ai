@@ -13,9 +13,17 @@ class GeminiClient:
             api_key=os.getenv("GEMINI_API_KEY")
         )
 
-    def generate(self, prompt: str) -> str:
-        response = self.client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt
-        )
-        return response.text.strip()
+def generate_reply(persona: str, goal: str, scammer_message: str) -> str:
+    client = GeminiClient()
+
+    prompt = f"""
+    Persona: {persona}
+    Goal: {goal}
+
+    Scammer said:
+    {scammer_message}
+
+    Respond like the persona while trying to waste scammer time.
+    """
+
+    return client.generate(prompt)

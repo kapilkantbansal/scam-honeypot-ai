@@ -29,7 +29,7 @@ if st.button("Analyze"):
     else:
         try:
             response = requests.post(
-                "http://127.0.0.1:8000/chat",   # 🔴 change if your endpoint name is different
+                "https://scam-honeypot-ai-zarz.onrender.com/chat",   # 🔴 change if your endpoint name is different
                 json={"message": user_input},
                 timeout=30
             )
