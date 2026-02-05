@@ -1,7 +1,7 @@
 # main.py
 
 from fastapi import FastAPI
-from schemas import InputMessage
+from backend.api.schemas import InputMessage
 
 app = FastAPI(title="Practice API Test")
 
