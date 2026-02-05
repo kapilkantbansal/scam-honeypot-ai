@@ -41,7 +41,7 @@ agent = AgentController()  # DO NOT pass GeminiClient here
 
 # ---------------- Route ----------------
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat")
 def chat(req: Optional[ChatRequest] = Body(None),_=Depends(verify_api_key)):
 
      # 🔥 Normalize tester + swagger input
